@@ -1,0 +1,213 @@
+package com.yiche.autoeasy.widget;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapShader;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
+import android.graphics.RectF;
+import android.graphics.Shader;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
+import android.support.annotation.Nullable;
+import android.text.TextPaint;
+import android.util.AttributeSet;
+import android.widget.ImageView;
+
+import com.yiche.autoeasy.R;
+import com.yiche.autoeasy.model.BannershequItem;
+import com.yiche.autoeasy.tool.EasyImageLoader;
+import com.yiche.autoeasy.tool.TextUtils;
+import com.yiche.autoeasy.tool.ToolBox;
+import com.yiche.changeskin.SkinManager;
+
+/**
+ * 热门话题图标
+ * Created by ihanb on 2017/5/17.
+ */
+public class HotHuatiImage extends ImageView {
+
+    public static Paint textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);   //绘制文字
+    private static PorterDuffColorFilter lastPicWithMpore;                  //绘制阴影
+    private static  final int text_x_offset;
+
+    private Bitmap mBitmap;
+    private BitmapShader mBitmapShader;
+    private final Paint mBitmapPaint = new Paint();
+    private RectF mRectF = new RectF();
+    private String mText;
+    private String imageUrl;
+    private int mCorner = 5;
+
+    static {
+        lastPicWithMpore =new PorterDuffColorFilter(Color.parseColor("#7f000000"), PorterDuff.Mode.SRC_ATOP);
+        //画文字的笔
+        textPaint.setTextSize(ToolBox.dip2px(15));
+        textPaint.setColor(SkinManager.getInstance().getColor(R.color.skin_color_tx_5));
+
+        Paint.FontMetrics fm = textPaint.getFontMetrics();
+        text_x_offset = (int) (fm.bottom+fm.top);
+    }
+
+
+    public HotHuatiImage(Context context) {
+        super(context);
+        mBitmapPaint.setColorFilter(lastPicWithMpore);
+    }
+
+    public HotHuatiImage(Context context, @Nullable AttributeSet attrs) {
+        super(context, attrs);
+        mBitmapPaint.setColorFilter(lastPicWithMpore);
+    }
+
+
+    public void setData(BannershequItem hotHuati) {
+        if(hotHuati==null){
+            return;
+        }
+        imageUrl = hotHuati.image;
+        mText = hotHuati.title;
+        EasyImageLoader.getInstance().displayImage(imageUrl,this);
+    }
+
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+        canvas.drawRoundRect(mRectF,mCorner,mCorner,mBitmapPaint);
+        drawText(canvas);
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        updateShaderMatrix();
+        mRectF.set(0,0,w,h);
+    }
+
+    private void drawText(Canvas canvas) {
+        if(TextUtils.isEmpty(mText)){
+            return;
+        }
+        float width = textPaint.measureText(mText);
+        int x_offset = (int) (getWidth()-width)/2;
+        if(x_offset<0){
+            x_offset = 0;
+        }
+        int y_offset = (getHeight()-text_x_offset)/2;
+        canvas.drawText(mText,x_offset,y_offset,textPaint);
+
+    }
+
+
+
+
+
+
+
+    @Override
+    public void setImageBitmap(Bitmap bm) {
+        super.setImageBitmap(bm);
+        mBitmap = bm;
+        setup();
+    }
+
+    @Override
+    public void setImageDrawable(Drawable drawable) {// android:src
+        super.setImageDrawable(drawable);
+        mBitmap = getBitmapFromDrawable(drawable);
+        setup();
+    }
+
+    @Override
+    public void setImageResource(int resId) {
+        super.setImageResource(resId);
+        mBitmap = getBitmapFromDrawable(getDrawable());
+        setup();
+    }
+
+
+    private void setup() {
+        if (mBitmap == null) {
+            return;
+        }
+
+        // 渲染器
+        mBitmapShader = new BitmapShader(mBitmap, Shader.TileMode.CLAMP,
+                Shader.TileMode.CLAMP);
+
+        mBitmapPaint.setAntiAlias(true);// 抗锯齿
+        mBitmapPaint.setShader(mBitmapShader);
+
+        updateShaderMatrix();
+    }
+
+    private final Matrix mShaderMatrix = new Matrix();
+    private void updateShaderMatrix() {
+        if(mBitmap==null||getHeight()==0){
+            return;
+        }
+        mShaderMatrix.set(null);// 初始化图片矩阵
+
+        int bitmapHeight = mBitmap.getHeight();     // 获取图片的高度
+        int bitmapWidth = mBitmap.getWidth();       // 获取图片的宽度
+
+        float mHscale = getHeight() * 1.0f / bitmapHeight;
+        float mWscale = getWidth() * 1.0f / bitmapWidth;
+        mShaderMatrix.setScale(mWscale, mHscale);
+        mBitmapShader.setLocalMatrix(mShaderMatrix);
+
+        invalidate();
+    }
+
+
+
+
+    private static final Bitmap.Config BITMAP_CONFIG = Bitmap.Config.ARGB_8888;
+    private static final int COLORDRAWABLE_DIMENSION = 1;                           //颜色的话宽度
+
+    private Bitmap getBitmapFromDrawable(Drawable drawable) {
+        if (drawable == null) {
+            return null;
+        }
+
+        if (drawable instanceof BitmapDrawable) {
+            return ((BitmapDrawable) drawable).getBitmap();
+        }
+
+        try {
+            Bitmap bitmap;
+
+            if (drawable instanceof ColorDrawable) {
+                bitmap = Bitmap.createBitmap(COLORDRAWABLE_DIMENSION,
+                        COLORDRAWABLE_DIMENSION, BITMAP_CONFIG);
+            } else {
+                bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(),
+                        drawable.getIntrinsicHeight(), BITMAP_CONFIG);
+            }
+
+            Canvas canvas = new Canvas(bitmap);
+            drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+            drawable.draw(canvas);
+            return bitmap;
+        } catch (OutOfMemoryError e) {
+            return null;
+        }
+    }
+
+
+    //设置是否绘制半透明色遮罩
+    public void setShowShadow(boolean showShadow) {
+        mBitmapPaint.setColorFilter(showShadow? lastPicWithMpore:null);
+    }
+
+    //设置圆角角度
+    public void setCorner(int corner) {
+        mCorner = corner;
+        postInvalidate();
+    }
+}
